@@ -2,17 +2,20 @@
 #include <algorithm>
 #include <utility>
 #include <cassert>
+#include <map>
 #include "spider_attack/environment.hpp"
 #include "spider_attack/entity.hpp"
 #include "spider_attack/base.hpp"
 
 using namespace std;
 
+inline int sq(const int x) { return x * x; }
+
 int dis_sq(pair<int, int> pa, pair<int, int> pb)
 {
     auto dx = pa.first - pb.first;
     auto dy = pa.second - pb.second;
-    return dx * dx + dy * dy;
+    return sq(dx) + sq(dy);
 }
 
 pair<int, int> add_pos(pair<int, int> pa, pair<int, int> pb)
@@ -25,7 +28,10 @@ pair<int, int> sub_pos(pair<int, int> pa, pair<int, int> pb)
     return make_pair(pa.first - pb.first, pa.second - pb.second);
 }
 
-const spider_attack::Monster &select_target(pair<int, int> my_position, const vector<spider_attack::Monster> &monsters, const spider_attack::Environment &env)
+const spider_attack::Monster &select_target(
+    pair<int, int> my_position,
+    const vector<spider_attack::Monster> &monsters,
+    const spider_attack::Environment &env)
 {
     int selected_idx = -1;
     int min_dis_sq = -1;
@@ -34,7 +40,7 @@ const spider_attack::Monster &select_target(pair<int, int> my_position, const ve
     {
         for (size_t i = 0, c = min(monsters.size(), 3LU); i < c; i++)
         {
-            if (dis_sq(monsters[i].get_position(), env.get_my_base().get_position()) > threshold * threshold)
+            if (dis_sq(monsters[i].get_position(), env.get_my_base().get_position()) > sq(threshold))
                 continue;
             int d = dis_sq(my_position, monsters[i].get_position());
             if (selected_idx == -1 || d < min_dis_sq)
@@ -52,9 +58,6 @@ const spider_attack::Monster &select_target(pair<int, int> my_position, const ve
 
 vector<pair<int, int>> get_default_positions(const spider_attack::Environment &env)
 {
-    const int map_x = 17630;
-    const int map_y = 9000;
-
     vector<pair<int, int>> ret{
         make_pair(4200, 600),
         make_pair(4400, 3400),
@@ -65,8 +68,8 @@ vector<pair<int, int>> get_default_positions(const spider_attack::Environment &e
     {
         for (auto &p : ret)
         {
-            p.first = map_x - p.first;
-            p.second = map_y - p.second;
+            p.first = env.map_x - p.first;
+            p.second = env.map_y - p.second;
         }
     }
 
@@ -77,13 +80,18 @@ int main()
 {
     spider_attack::Environment env = spider_attack::Environment::read();
     auto default_positions = get_default_positions(env);
+    map<int, bool> hero_is_controlled;
 
     auto threat_level = [env](const spider_attack::Monster &mon)
     {
         auto dis = dis_sq(mon.get_position(), env.get_my_base().get_position());
-        if (dis > 6000 * 6000)
+        if (dis > sq(6000))
             return INT32_MIN;
         int ratio = mon.is_targeting_me() ? 10 : 1;
+        if (mon.is_targeting_me() && mon.get_shield_life() > 0)
+            ratio *= 4;
+        if (dis < sq(3000))
+            ratio *= mon.get_health();
         return -dis * ratio;
     };
 
@@ -104,11 +112,42 @@ int main()
             mon.debug(cerr);
         }
 
+        for (spider_attack::Hero &hero : env)
+        {
+            // this hero is controlled last round
+            if (hero_is_controlled[hero.get_id()])
+            {
+                if (!hero.is_controlled() && hero.get_shield_life() <= 0)
+                    hero.shield(hero.get_id());
+            }
+
+            if (hero.is_controlled())
+                hero_is_controlled[hero.get_id()] = true;
+        }
+
+        for (spider_attack::Hero &hero : env)
+        {
+            if (hero.get_shield_life() > 0 && hero.will_wait())
+            {
+                // try to find opponent hero
+                for (const auto &ent : env.get_entities())
+                {
+                    if (dis_sq(hero.get_position(), ent.get_position()) < sq(env.wind_range))
+                    {
+                        hero.wind(env.get_opponent_base().get_position());
+                        break;
+                    }
+                }
+            }
+        }
+
         if (!monsters.empty())
         {
             vector<spider_attack::Monster> selected_monsters;
             for (spider_attack::Hero &hero : env)
             {
+                if (!hero.will_wait())
+                    continue;
                 auto mons_copy = monsters;
                 for (auto &mon : selected_monsters)
                 {
@@ -122,6 +161,9 @@ int main()
                     }
                 }
 
+                if (mons_copy.empty())
+                    mons_copy = monsters;
+
                 auto target = select_target(hero.get_position(), mons_copy, env);
                 hero.move(target.get_position());
                 selected_monsters.push_back(target);
@@ -132,45 +174,27 @@ int main()
             auto it = default_positions.begin();
             for (spider_attack::Hero &hero : env)
             {
+                if (!hero.will_wait())
+                    continue;
                 hero.move(*it);
                 it++;
             }
         }
 
-        const int spell_cost = 10;
-        const int wind_range = 1280;
         int current_mana = env.get_my_base().get_mana();
-        for (spider_attack::Hero &hero : env)
-        {
-            if (dis_sq(hero.get_position(), env.get_my_base().get_position()) > 4000 * 4000)
-                continue;
-            if (current_mana < spell_cost)
-                break;
-            for (const auto &mon : monsters)
-            {
-                if (mon.get_shield_life() > 0)
-                    continue;
-                if (dis_sq(hero.get_position(), mon.get_position()) <= wind_range * wind_range)
-                {
-                    hero.wind(add_pos(hero.get_position(), sub_pos(env.get_opponent_base().get_position(), hero.get_position())));
-                    current_mana -= spell_cost;
-                    break;
-                }
-            }
-        }
 
-        const int control_range = 2200;
+        // try to make monsters move away oy base
         for (const auto &mon : monsters)
         {
-            if (dis_sq(mon.get_position(), env.get_my_base().get_position()) > 3000 * 3000)
+            if (dis_sq(mon.get_position(), env.get_my_base().get_position()) > sq(2500))
                 continue;
-            if (mon.get_shield_life() > 0)
+            if (mon.get_shield_life() > 0 || mon.is_controlled())
                 continue;
-            if (current_mana < spell_cost)
+            if (current_mana < env.spell_cost)
                 continue;
             for (auto &hero : env)
             {
-                if (dis_sq(hero.get_position(), mon.get_position()) < control_range * control_range)
+                if (dis_sq(hero.get_position(), mon.get_position()) < sq(env.control_range))
                 {
                     hero.control(mon.get_id(), hero.get_position());
                     current_mana -= 10;
@@ -179,12 +203,34 @@ int main()
             }
         }
 
+        // try wind
+        for (spider_attack::Hero &hero : env)
+        {
+            if (dis_sq(hero.get_position(), env.get_my_base().get_position()) > sq(4000))
+                continue;
+            if (current_mana < env.spell_cost)
+                break;
+            if (hero.will_cast())
+                continue;
+            for (const auto &mon : monsters)
+            {
+                if (mon.get_shield_life() > 0)
+                    continue;
+                if (dis_sq(hero.get_position(), mon.get_position()) <= sq(env.wind_range))
+                {
+                    hero.wind(add_pos(hero.get_position(), sub_pos(env.get_opponent_base().get_position(), hero.get_position())));
+                    current_mana -= env.spell_cost;
+                    break;
+                }
+            }
+        }
+
         // try to control more monsters moving to opponent base
         for (spider_attack::Hero &hero : env)
         {
-            if (current_mana < spell_cost)
+            if (current_mana < env.spell_cost)
                 break;
-            if (!hero.is_waiting())
+            if (!hero.will_wait())
                 continue;
             for (const auto &mon : monsters)
             {
@@ -192,10 +238,10 @@ int main()
                     continue;
                 if (mon.is_targeting_opponent())
                     continue;
-                if (dis_sq(mon.get_position(), env.get_opponent_base().get_position()) > 7500 * 7500)
+                if (dis_sq(mon.get_position(), env.get_opponent_base().get_position()) > sq(7500))
                     continue;
                 hero.control(mon.get_id(), env.get_opponent_base().get_position());
-                current_mana -= spell_cost;
+                current_mana -= env.spell_cost;
             }
         }
 

@@ -135,7 +135,7 @@ namespace spider_attack
         this->action_ = "WAIT";
     }
 
-    bool Hero::is_waiting() const
+    bool Hero::will_wait() const
     {
         return this->action_ == "WAIT";
     }
@@ -150,6 +150,11 @@ namespace spider_attack
         this->move(pos.first, pos.second);
     }
 
+    bool Hero::will_move() const
+    {
+        return this->action_.find("MOVE") != std::string::npos;
+    }
+
     void Hero::wind(const std::pair<int, int> target)
     {
         this->action_ = "SPELL WIND " + std::to_string(target.first) + " " + std::to_string(target.second);
@@ -159,6 +164,16 @@ namespace spider_attack
     {
 
         this->action_ = "SPELL CONTROL " + std::to_string(entity_id) + " " + std::to_string(target.first) + " " + std::to_string(target.second);
+    }
+
+    void Hero::shield(int entity_id)
+    {
+        this->action_ = "SPELL SHIELD " + std::to_string(entity_id);
+    }
+
+    bool Hero::will_cast() const
+    {
+        return this->action_.find("SPELL") != std::string::npos;
     }
 
     const std::string Hero::action() const

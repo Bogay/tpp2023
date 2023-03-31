@@ -11,9 +11,6 @@ namespace spider_attack
     class Environment
     {
     private:
-        const int map_x = 17630;
-        const int map_y = 9000;
-
         Base my_base_;
         Base opponent_base_;
         std::size_t heroes_per_player_;
@@ -22,6 +19,13 @@ namespace spider_attack
         std::vector<Monster> monsters_;
 
     public:
+        const int map_x = 17630;
+        const int map_y = 9000;
+        const int spell_cost = 10;
+        const int wind_range = 1280;
+        const int shield_range = 2200;
+        const int control_range = 2200;
+
         Environment();
         static Environment read(std::istream &input = std::cin);
         void update(std::istream &input = std::cin);

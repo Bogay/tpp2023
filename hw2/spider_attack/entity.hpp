@@ -71,12 +71,14 @@ namespace spider_attack
     {
     public:
         void wait();
-        bool is_waiting() const;
+        bool will_wait() const;
         void move(const int x, const int y);
         void move(const std::pair<int, int> pos);
+        bool will_move() const;
         void wind(const std::pair<int, int> target);
         void shield(int entity_id);
         void control(int entity_id, const std::pair<int, int> target);
+        bool will_cast() const;
 
         const std::string action() const;
 
