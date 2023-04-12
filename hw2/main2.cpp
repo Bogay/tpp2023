@@ -1,4 +1,5 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <cmath>
 #include "spider_attack/environment.hpp"
 #include "spider_attack/entity.hpp"
 #include "spider_attack/base.hpp"
@@ -7,16 +8,11 @@ using namespace std;
 
 enum
 {
-    monster,
-    myHero,
-    opHero
-};
-enum
-{
     WAIT,
     MOVE,
     SPELL
 };
+
 enum
 {
     WIND,
@@ -24,58 +20,17 @@ enum
     CONTROL
 };
 
-struct Entity
-{
-    int id;   // Unique identifier
-    int type; // 0=monster, 1=your hero, 2=opponent hero
-    int x;    // Position of this entity
-    int y;
-    int shield_life;   // Count down until shield spell fades
-    int is_controlled; // Equals 1 when this entity is under a control spell
-    int health;        // Remaining health of this monster
-    int vx;            // Trajectory of this monster
-    int vy;
-    int near_base;  // 0=monster with no target yet, 1=monster targeting a base
-    int threat_for; // Given this monster's trajectory, is it a threat to 1=your base, 2=your opponent's base, 0=neither
-
-    double distToMyBase;
-};
-
-int myBaseX; // The corner of the map representing your base
-int myBaseY;
-int opBaseX;
-int opBaseY;
-int myHealth, myMana, opHealth, opMana;
 int roundCnt;
 int sentCnt;
 
-Entity get_entity()
-{
-    int id;   // Unique identifier
-    int type; // 0=monster, 1=your hero, 2=opponent hero
-    int x;    // Position of this entity
-    int y;
-    int shield_life;   // Count down until shield spell fades
-    int is_controlled; // Equals 1 when this entity is under a control spell
-    int health;        // Remaining health of this monster
-    int vx;            // Trajectory of this monster
-    int vy;
-    int near_base;  // 0=monster with no target yet, 1=monster targeting a base
-    int threat_for; // Given this monster's trajectory, is it a threat to 1=your base, 2=your opponent's base, 0=neither
-    cin >> id >> type >> x >> y >> shield_life >> is_controlled >> health >> vx >> vy >> near_base >> threat_for;
-    cin.ignore();
-
-    return (Entity){id, type, x, y, shield_life, is_controlled, health, vx, vy, near_base, threat_for, hypot(abs(x - myBaseX), abs(y - myBaseY))};
-} // get_entity
-
-double distance(spider_attack::Entity a, spider_attack::Entity b)
+double distance(const spider_attack::Entity &a, const spider_attack::Entity &b)
 {
     auto [ax, ay] = a.get_position();
     auto [bx, by] = b.get_position();
     return hypot(abs(ax - bx), abs(ay - by));
 } // distance
 
-double distance(spider_attack::Entity a, pair<int, int> b)
+double distance(const spider_attack::Entity &a, pair<int, int> b)
 {
     auto [ax, ay] = a.get_position();
     return hypot(abs(ax - b.first), abs(ay - b.second));
@@ -83,7 +38,9 @@ double distance(spider_attack::Entity a, pair<int, int> b)
 
 void set_defender(spider_attack::Environment &env, int defenderID)
 {
-    auto defender = env.get_my_heroes()[defenderID];
+    cerr << "become defender " << defenderID << '\n';
+
+    auto &defender = env.get_my_hero(defenderID);
     int standX, standY, action = MOVE, toX, toY, spellType = WIND, entityID;
 
     if (env.get_my_base().get_position().first != 0)
@@ -94,21 +51,20 @@ void set_defender(spider_attack::Environment &env, int defenderID)
     toX = standX, toY = standY;
 
     // guarding of opponents
-    int myMana = env.get_my_base().get_mana();
-    for (int i = 0; myMana >= 10 && i < env.get_entities().size(); i++)
+    for (int i = 0; env.can_cast() && i < env.get_opponent_heroes().size(); i++)
     {
-        if (distance(defender, env.get_entities()[i]) <= 1200)
+        if (distance(defender, env.get_opponent_heroes()[i]) <= 1200)
         {
             action = SPELL;
             spellType = WIND;
             break;
         } // if
-        else if (myMana >= 100 && distance(defender, env.get_entities()[i]) <= 1500)
+        else if (env.estimate_mana() >= 100 && distance(defender, env.get_opponent_heroes()[i]) <= 1500)
         {
             action = SPELL;
             spellType = CONTROL;
-            entityID = env.get_entities()[i].get_id();
-            toX = opBaseX, toY = opBaseY;
+            entityID = env.get_opponent_heroes()[i].get_id();
+            tie(toX, toY) = env.get_opponent_base().get_position();
             break;
         } // else if
     }     // for i
@@ -117,7 +73,7 @@ void set_defender(spider_attack::Environment &env, int defenderID)
     if (env.get_monsters().empty())
         action = MOVE;
     else if (env.get_monsters()[0].get_shield_life() == 0 &&
-             myMana >= 10 &&
+             env.can_cast() &&
              distance(defender, env.get_monsters()[0]) < 1200 &&
              distance(env.get_monsters()[0], env.get_my_base().get_position()) < 2000)
     {
@@ -132,7 +88,7 @@ void set_defender(spider_attack::Environment &env, int defenderID)
 
     if (defender.get_shield_life() == 0)
     {
-        for (auto o : env.get_entities())
+        for (const auto o : env.get_opponent_heroes())
         {
             if (distance(defender, o) < 3000)
             {
@@ -156,39 +112,39 @@ void set_defender(spider_attack::Environment &env, int defenderID)
         }//if
     }//for i*/
 
+    // TODO: add convenient method to construct comment
     defender.set_comment(" D ");
     if (action == MOVE)
-        // cout << "MOVE " << toX << ' ' << toY << " D " << toX << ' ' << toY << endl;
         defender.move(make_pair(toX, toY));
     else if (action == SPELL)
     {
-        myMana -= 10;
-
         if (spellType == WIND)
-            // cout << "SPELL WIND " << opBaseX << ' ' << opBaseY << " D" << endl;
             defender.wind(env.get_opponent_base().get_position());
         else if (spellType == SHIELD)
-            // cout << "SPELL SHIELD " << entityID << " D" << endl;
             defender.shield(entityID);
         else if (spellType == CONTROL)
-            // cout << "SPELL CONTROL " << entityID << ' ' << toX << ' ' << toY << " D" << endl;
             defender.control(entityID, make_pair(toX, toY));
     } // else if
 } // set_defender
 
-void set_reaper(vector<vector<Entity>> &entities, int reaperID, int standX, int standY, bool farReaper = false)
+void set_reaper(spider_attack::Environment &env, int reaperID, int standX, int standY, bool farReaper = false)
 {
-    Entity reaper = entities[myHero][reaperID];
+    cerr << "become reaper " << reaperID << '\n';
+    auto &reaper = env.get_my_hero(reaperID);
 
     // find closest monster w/ distToMyBase > 5000
     int targetMonsterIndex = 0, action;
     double minDist = 2e9;
-    for (int i = 0; i < entities[monster].size(); i++)
+    auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
     {
-        if (entities[monster][i].distToMyBase <= 5000 || (!farReaper && 7000 <= entities[monster][i].distToMyBase))
+        return distance(ent, env.get_my_base().get_position());
+    };
+    for (int i = 0; i < env.get_monsters().size(); i++)
+    {
+        if (get_dist_to_my_base(env.get_monsters()[i]) <= 5000 || (!farReaper && 7000 <= get_dist_to_my_base(env.get_monsters()[i])))
             continue;
 
-        double d = distance(reaper, entities[monster][i]);
+        double d = distance(reaper, env.get_monsters()[i]);
 
         if (d < minDist)
         {
@@ -197,61 +153,60 @@ void set_reaper(vector<vector<Entity>> &entities, int reaperID, int standX, int 
         } // if
     }     // for i
 
-    if (entities[monster].empty())
+    if (env.get_monsters().empty())
         targetMonsterIndex = -1;
 
     int toX, toY;
     if (targetMonsterIndex == -1)
     {
         action = MOVE;
-
-        if (myBaseX)
-            toX = 17630 - standX, toY = 9000 - standY;
+        if (env.get_my_base().get_position().first)
+            toX = env.map_x - standX, toY = env.map_y - standY;
         else
             toX = standX, toY = standY;
     } // if
     else
     {
         action = MOVE;
-        tie(toX, toY) = tie(entities[monster][targetMonsterIndex].x, entities[monster][targetMonsterIndex].y);
+        tie(toX, toY) = env.get_monsters()[targetMonsterIndex].get_position();
     } // else
 
     // check if opponents attacking
     int entityID, spellType;
-    for (int i = 0; roundCnt > 100 && myMana >= 10 && i < entities[opHero].size(); i++)
+    for (int i = 0; roundCnt > 100 && env.can_cast() && i < env.get_opponent_heroes().size(); i++)
     {
-        if (entities[opHero][i].distToMyBase > 8000)
+        if (get_dist_to_my_base(env.get_opponent_heroes()[i]) > 8000)
             continue;
 
-        if (distance(reaper, entities[opHero][i]) < 1200)
+        if (distance(reaper, env.get_opponent_heroes()[i]) < 1200)
         {
             action = SPELL;
             spellType = WIND;
-            toX = opBaseX, toY = opBaseY;
+            tie(toX, toY) = env.get_opponent_base().get_position();
             break;
         } // if
-        else if (myMana >= 100 && distance(reaper, entities[opHero][i]) < 2100)
+        else if (env.estimate_mana() >= 100 && distance(reaper, env.get_opponent_heroes()[i]) < 2100)
         {
             action = SPELL;
             spellType = CONTROL;
-            entityID = entities[opHero][i].id;
-            toX = opBaseX, toY = opBaseY;
+            entityID = env.get_opponent_heroes()[i].get_id();
+            tie(toX, toY) = env.get_opponent_base().get_position();
             break;
         } // if
         else
         {
             action = MOVE;
-            tie(toX, toY) = tie(entities[opHero][i].x, entities[opHero][i].y);
+            tie(toX, toY) = env.get_opponent_heroes()[i].get_position();
         } // else if
     }     // for i
 
     // adding shields
-    if (roundCnt > 100 && myMana >= 10 && reaper.shield_life == 0)
+    if (roundCnt > 100 && env.can_cast() && reaper.get_shield_life() == 0)
     {
         bool opNear = false;
-        for (int j = 0; j < entities[opHero].size(); j++)
+        for (int j = 0; j < env.get_opponent_heroes().size(); j++)
         {
-            if (distance(reaper, entities[opHero][j]) < 2500)
+            if (distance(reaper, env.get_opponent_heroes()[j]) < 2500)
             {
                 opNear = true;
                 break;
@@ -262,53 +217,63 @@ void set_reaper(vector<vector<Entity>> &entities, int reaperID, int standX, int 
         {
             action = SPELL;
             spellType = SHIELD;
-            entityID = reaper.id;
+            entityID = reaper.get_id();
         } // if
     }     // if
 
+    reaper.set_comment(" R ");
     if (action == MOVE)
-        cout << "MOVE " << toX << ' ' << toY << " R " << toX << ' ' << toY << endl;
+        reaper.move(make_pair(toX, toY));
     else if (action == SPELL)
     {
-        myMana -= 10;
-
         if (spellType == WIND)
-            cout << "SPELL WIND " << toX << ' ' << toY << " R " << endl;
+            reaper.wind(make_pair(toX, toY));
         else if (spellType == SHIELD)
-            cout << "SPELL SHIELD " << entityID << " R " << endl;
+            reaper.shield(entityID);
         else if (spellType == CONTROL)
-            cout << "SPELL CONTROL " << entityID << ' ' << toX << ' ' << toY << " R " << endl;
+            reaper.control(entityID, make_pair(toX, toY));
     } // else if
 
     return;
 } // set_reaper
 
-void set_attacker(vector<vector<Entity>> &entities, int attackerID)
+void set_attacker(spider_attack::Environment &env, int attackerID)
 {
-    Entity attacker = entities[myHero][attackerID], target = entities[monster].back();
+    cerr << "become attacker " << attackerID << '\n';
+
+    auto &attacker = env.get_my_hero(attackerID);
+    auto target = env.get_monsters().back();
 
     int action = MOVE, toX, toY, spellType, entityID;
+    auto [opBaseX, opBaseY] = env.get_opponent_base().get_position();
+    auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
+    {
+        return distance(ent, env.get_my_base().get_position());
+    };
 
-    if (myBaseX)
+    if (env.get_my_base().get_position().first)
         toX = 7630, toY = 4500;
     else
         toX = 10000, toY = 4500;
 
-    for (int i = entities[monster].size() - 1; i >= 0; i--)
+    for (int i = env.get_monsters().size() - 1; i >= 0; i--)
     {
-        target = entities[monster][i];
+        target = env.get_monsters()[i];
+        auto x = (double)target.get_velocity().first / ((opBaseX - target.get_position().first) + 0.001);
+        auto y = (double)target.get_velocity().second / ((opBaseY - target.get_position().second) + 0.001);
+        auto will_to_op_base = abs(x - y) < 0.001;
 
-        if (target.distToMyBase < 10000)
+        if (get_dist_to_my_base(target) < 10000)
         {
-            if (abs((double)target.vx / (opBaseX - target.x) - (double)target.vy / (opBaseY - target.y)) < 0.001)
+            if (will_to_op_base)
             {
                 continue;
             } // if
-            else if (distance(attacker, target) < 2190 && attacker.distToMyBase < 12000)
+            else if (distance(attacker, target) < 2190 && get_dist_to_my_base(attacker) < 12000)
             {
                 action = SPELL;
                 spellType = CONTROL;
-                entityID = target.id;
+                entityID = target.get_id();
                 toX = opBaseX, toY = opBaseY;
                 break;
             } // else if
@@ -319,38 +284,39 @@ void set_attacker(vector<vector<Entity>> &entities, int attackerID)
             {
                 action = SPELL;
                 spellType = WIND;
-                toX = attacker.x + opBaseX - target.x, toY = attacker.y + opBaseY - target.y;
+                toX = attacker.get_position().first + opBaseX - target.get_position().first,
+                toY = attacker.get_position().second + opBaseY - target.get_position().second;
                 break;
             } // if
-            else if (target.shield_life == 0 && abs((double)target.vx / (opBaseX - target.x) - (double)target.vy / (opBaseY - target.y)) < 0.001 && distance(target, make_pair(opBaseX, opBaseY)) < 7000)
+            else if (target.get_shield_life() == 0 && will_to_op_base && distance(target, make_pair(opBaseX, opBaseY)) < 7000)
             {
                 action = SPELL;
                 spellType = SHIELD;
-                entityID = target.id;
+                entityID = target.get_id();
                 break;
             } // else if
-            else if (abs((double)target.vx / (opBaseX - target.x) - (double)target.vy / (opBaseY - target.y)) < 0.001)
+            else if (will_to_op_base)
             {
                 continue;
             } // else if
-            else if (distance(attacker, target) < 2190 && attacker.distToMyBase < 12000)
+            else if (distance(attacker, target) < 2190 && get_dist_to_my_base(attacker) < 12000)
             {
                 action = SPELL;
                 spellType = CONTROL;
-                entityID = target.id;
+                entityID = target.get_id();
                 toX = opBaseX, toY = opBaseY;
                 break;
             } // if
             else
             {
                 action = MOVE;
-                toX = target.x, toY = target.y;
+                tie(toX, toY) = target.get_position();
                 break;
             } // else
         }     // else
     }         // for i
 
-    if (attacker.distToMyBase < 7000)
+    if (get_dist_to_my_base(attacker) < 7000)
     {
         action = MOVE;
         toX = opBaseX;
@@ -370,12 +336,12 @@ void set_attacker(vector<vector<Entity>> &entities, int attackerID)
         sentCnt = max(0, sentCnt - 1);
 
     // adding shields
-    if (attacker.shield_life == 0)
+    if (attacker.get_shield_life() == 0)
     {
         bool opNear = false;
-        for (int j = 0; j < entities[opHero].size(); j++)
+        for (int j = 0; j < env.get_opponent_heroes().size(); j++)
         {
-            if (distance(attacker, entities[opHero][j]) < 3000)
+            if (distance(attacker, env.get_opponent_heroes()[j]) < 3000)
             {
                 opNear = true;
                 break;
@@ -386,28 +352,27 @@ void set_attacker(vector<vector<Entity>> &entities, int attackerID)
         {
             action = SPELL;
             spellType = SHIELD;
-            entityID = attacker.id;
+            entityID = attacker.get_id();
         } // if
     }     // if
 
+    attacker.set_comment(" A ");
     if (action == MOVE)
-        cout << "MOVE " << toX << ' ' << toY << " A " << toX << ' ' << toY << endl;
+        attacker.move(make_pair(toX, toY));
     else if (action == SPELL)
     {
-        myMana -= 10;
-
         if (spellType == WIND)
-            cout << "SPELL WIND " << toX << ' ' << toY << " A" << endl;
+            attacker.wind(make_pair(toX, toY));
         else if (spellType == SHIELD)
-            cout << "SPELL SHIELD " << entityID << " A" << endl;
+            attacker.shield(entityID);
         else if (spellType == CONTROL)
-            cout << "SPELL CONTROL " << entityID << ' ' << toX << ' ' << toY << " A" << endl;
+            attacker.control(entityID, make_pair(toX, toY));
 
         if (1 || distance(attacker, make_pair(opBaseX, opBaseY)) < 8000)
         {
-            for (auto m : entities[monster])
+            for (auto m : env.get_monsters())
             {
-                if (distance(attacker, m) < 2200 && m.health >= 10)
+                if (distance(attacker, m) < 2200 && m.get_health() >= 10)
                     sentCnt++;
             } // for m
         }     // if
@@ -418,64 +383,61 @@ void set_attacker(vector<vector<Entity>> &entities, int attackerID)
 
 int main()
 {
-    cin >> myBaseX >> myBaseY;
-    cin.ignore();
-    int heroes_per_player; // Always 3
-    cin >> heroes_per_player;
-    cin.ignore();
-
-    opBaseX = 17630 - myBaseX, opBaseY = 9000 - myBaseY;
+    spider_attack::Environment env = spider_attack::Environment::read();
 
     // game loop
     while (1)
     {
         roundCnt++;
-        cin >> myHealth >> myMana >> opHealth >> opMana;
-        cin.ignore();
+        env.update();
 
-        int entity_count; // Amount of heros and monsters you can see
-        vector<vector<Entity>> entities(3, vector<Entity>());
-
-        cin >> entity_count;
-        cin.ignore();
-        for (int i = 0; i < entity_count; i++)
+        auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
         {
-            Entity tmp = get_entity();
-            entities[tmp.type].emplace_back(tmp);
-        } // for i
+            return distance(ent, env.get_my_base().get_position());
+        };
 
-        sort(entities[monster].begin(), entities[monster].end(), [](auto a, auto b)
-             { return a.distToMyBase < b.distToMyBase; });
-
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
+        env.sort_monsters([](
+                              const auto &env,
+                              const auto &a,
+                              const auto &b)
+                          { 
+                            auto da = distance(a, env.get_my_base().get_position());
+                            auto db = distance(b, env.get_my_base().get_position());
+                            return da < db; });
 
         bool shieldedMonster = false;
-        for (auto m : entities[monster])
+        for (const auto m : env.get_monsters())
         {
-            if (m.shield_life && m.distToMyBase < 5000)
+            if (m.get_shield_life() && get_dist_to_my_base(m) < 5000)
             {
                 shieldedMonster = true;
                 break;
             } // if
         }     // for m
 
-        if (!shieldedMonster && (entities[monster].empty() || entities[monster][0].distToMyBase > 2000 && entities[monster][0].distToMyBase > entities[myHero][0].distToMyBase))
-            set_reaper(entities, 0, 1100, 7800);
+        if (!shieldedMonster &&
+            (env.get_monsters().empty() ||
+             get_dist_to_my_base(env.get_monsters()[0]) > 2000 &&
+                 !env.get_opponent_heroes().empty() &&
+                 get_dist_to_my_base(env.get_monsters()[0]) > get_dist_to_my_base(env.get_opponent_heroes()[0])))
+            set_reaper(env, 0, 1100, 7800);
         else
-            set_defender(entities, 0);
+            set_defender(env, 0);
 
-        if ((!entities[monster].empty() && entities[monster][0].distToMyBase < 5000 && entities[myHero][1].distToMyBase < entities[myHero][0].distToMyBase && entities[myHero][1].distToMyBase < entities[myHero][2].distToMyBase) || shieldedMonster)
-            set_defender(entities, 1);
+        if ((!env.get_monsters().empty() &&
+             get_dist_to_my_base(env.get_monsters()[0]) < 5000 &&
+             get_dist_to_my_base(env.get_my_heroes()[1]) < get_dist_to_my_base(env.get_my_heroes()[0]) &&
+             get_dist_to_my_base(env.get_my_heroes()[1]) < get_dist_to_my_base(env.get_my_heroes()[2])) ||
+            shieldedMonster)
+            set_defender(env, 1);
         else
-            set_reaper(entities, 1, 5400, 5500);
+            set_reaper(env, 1, 5400, 5500);
 
-        // if (entities[myHero][2].distToMyBase < entities[myHero][0].distToMyBase && entities[myHero][2].distToMyBase < entities[myHero][1].distToMyBase) set_defender(entities, 2);
-        // if (shieldedMonster) set_defender(entities, 2);
-        // if (shieldedMonster) set_reaper(entities, 2, 5400, 5500);
-        if (roundCnt < 100 || entities[monster].empty() || myMana < 20)
-            set_reaper(entities, 2, 7800, 1100, true);
+        if (roundCnt < 100 || env.get_monsters().empty() || env.get_my_base().get_mana() < 20)
+            set_reaper(env, 2, 7800, 1100, true);
         else
-            set_attacker(entities, 2);
+            set_attacker(env, 2);
+
+        env.write_actions();
     } // while
 } // main

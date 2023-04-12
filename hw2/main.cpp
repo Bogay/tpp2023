@@ -95,9 +95,7 @@ int main()
         return -dis * ratio;
     };
 
-    auto cmp_monster = [threat_level](
-                           const spider_attack::Monster &ma,
-                           const spider_attack::Monster &mb)
+    auto cmp_monster = [threat_level](const auto &ma, const auto &mb)
     { return threat_level(ma) < threat_level(mb); };
 
     while (1)
@@ -130,7 +128,7 @@ int main()
             if (hero.get_shield_life() > 0 && hero.will_wait())
             {
                 // try to find opponent hero
-                for (const auto &ent : env.get_entities())
+                for (const auto &ent : env.get_opponent_heroes())
                 {
                     if (dis_sq(hero.get_position(), ent.get_position()) < sq(env.wind_range))
                     {

@@ -79,12 +79,14 @@ namespace spider_attack
         void shield(int entity_id);
         void control(int entity_id, const std::pair<int, int> target);
         bool will_cast() const;
+        void set_comment(const std::string &comment);
+        const std::string &comment() const;
 
-        const std::string action() const;
+        const std::string &action() const;
 
         Hero(Entity &&e);
 
     private:
-        std::string action_;
+        std::string action_, comment_;
     };
 }

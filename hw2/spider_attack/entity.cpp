@@ -176,9 +176,19 @@ namespace spider_attack
         return this->action_.find("SPELL") != std::string::npos;
     }
 
-    const std::string Hero::action() const
+    const std::string &Hero::action() const
     {
         return this->action_;
+    }
+
+    void Hero::set_comment(const std::string &comment)
+    {
+        this->comment_ = comment;
+    }
+
+    const std::string &Hero::comment() const
+    {
+        return this->comment_;
     }
 
     Hero::Hero(Entity &&e)
