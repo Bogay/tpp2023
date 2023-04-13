@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPIDER_ATTACKER_ENTITY_HPP
+#define SPIDER_ATTACKER_ENTITY_HPP
 
 #include <utility>
 #include <iostream>
@@ -90,3 +91,5 @@ namespace spider_attack
         std::string action_, comment_;
     };
 }
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPIDER_ATTACKER_BASE_HPP
+#define SPIDER_ATTACKER_BASE_HPP
 
 #include <iostream>
 #include <utility>
@@ -23,4 +24,6 @@ namespace spider_attack
 
         Base();
     };
-} // namespace spider_attack
+}
+
+#endif

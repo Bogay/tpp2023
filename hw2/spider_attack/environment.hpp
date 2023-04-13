@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPIDER_ATTACKER_ENVIRONMENT_HPP
+#define SPIDER_ATTACKER_ENVIRONMENT_HPP
 
 #include "base.hpp"
 #include "entity.hpp"
@@ -59,3 +60,5 @@ namespace spider_attack
         void write_actions(std::ostream &output = std::cout);
     };
 }
+
+#endif
