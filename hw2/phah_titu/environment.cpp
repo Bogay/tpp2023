@@ -4,7 +4,7 @@
 #include <functional>
 #include <algorithm>
 
-namespace spider_attack
+namespace phah_titu
 {
     Environment Environment::read(std::istream &input)
     {

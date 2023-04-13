@@ -1,13 +1,13 @@
 #!/bin/bash
 
 sources=(
-    spider_attack/base.hpp
-    spider_attack/entity.hpp
-    spider_attack/environment.hpp
-    spider_attack/base.cpp
-    spider_attack/entity.cpp
-    spider_attack/environment.cpp
-    main.cpp
+    phah_titu/base.hpp
+    phah_titu/entity.hpp
+    phah_titu/environment.hpp
+    phah_titu/base.cpp
+    phah_titu/entity.cpp
+    phah_titu/environment.cpp
+    main2.cpp
 )
 
 for src in "${sources[@]}"; do

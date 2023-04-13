@@ -1,8 +1,8 @@
 #include <iostream>
 #include <cmath>
-#include "spider_attack/environment.hpp"
-#include "spider_attack/entity.hpp"
-#include "spider_attack/base.hpp"
+#include "phah_titu/environment.hpp"
+#include "phah_titu/entity.hpp"
+#include "phah_titu/base.hpp"
 
 using namespace std;
 
@@ -23,20 +23,20 @@ enum
 int roundCnt;
 int sentCnt;
 
-double distance(const spider_attack::Entity &a, const spider_attack::Entity &b)
+double distance(const phah_titu::Entity &a, const phah_titu::Entity &b)
 {
     auto [ax, ay] = a.get_position();
     auto [bx, by] = b.get_position();
     return hypot(abs(ax - bx), abs(ay - by));
 } // distance
 
-double distance(const spider_attack::Entity &a, pair<int, int> b)
+double distance(const phah_titu::Entity &a, pair<int, int> b)
 {
     auto [ax, ay] = a.get_position();
     return hypot(abs(ax - b.first), abs(ay - b.second));
 } // distance
 
-void set_defender(spider_attack::Environment &env, int defenderID)
+void set_defender(phah_titu::Environment &env, int defenderID)
 {
     cerr << "become defender " << defenderID << '\n';
 
@@ -127,7 +127,7 @@ void set_defender(spider_attack::Environment &env, int defenderID)
     } // else if
 } // set_defender
 
-void set_reaper(spider_attack::Environment &env, int reaperID, int standX, int standY, bool farReaper = false)
+void set_reaper(phah_titu::Environment &env, int reaperID, int standX, int standY, bool farReaper = false)
 {
     cerr << "become reaper " << reaperID << '\n';
     auto &reaper = env.get_my_hero(reaperID);
@@ -135,7 +135,7 @@ void set_reaper(spider_attack::Environment &env, int reaperID, int standX, int s
     // find closest monster w/ distToMyBase > 5000
     int targetMonsterIndex = 0, action;
     double minDist = 2e9;
-    auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
+    auto get_dist_to_my_base = [env](const auto &ent)
     {
         return distance(ent, env.get_my_base().get_position());
     };
@@ -237,7 +237,7 @@ void set_reaper(spider_attack::Environment &env, int reaperID, int standX, int s
     return;
 } // set_reaper
 
-void set_attacker(spider_attack::Environment &env, int attackerID)
+void set_attacker(phah_titu::Environment &env, int attackerID)
 {
     cerr << "become attacker " << attackerID << '\n';
 
@@ -246,7 +246,7 @@ void set_attacker(spider_attack::Environment &env, int attackerID)
 
     int action = MOVE, toX, toY, spellType, entityID;
     auto [opBaseX, opBaseY] = env.get_opponent_base().get_position();
-    auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
+    auto get_dist_to_my_base = [env](const auto &ent)
     {
         return distance(ent, env.get_my_base().get_position());
     };
@@ -383,7 +383,7 @@ void set_attacker(spider_attack::Environment &env, int attackerID)
 
 int main()
 {
-    spider_attack::Environment env = spider_attack::Environment::read();
+    phah_titu::Environment env = phah_titu::Environment::read();
 
     // game loop
     while (1)
@@ -391,7 +391,7 @@ int main()
         roundCnt++;
         env.update();
 
-        auto get_dist_to_my_base = [env](const spider_attack::Entity &ent)
+        auto get_dist_to_my_base = [env](const auto &ent)
         {
             return distance(ent, env.get_my_base().get_position());
         };

@@ -1,5 +1,5 @@
-#ifndef SPIDER_ATTACKER_ENVIRONMENT_HPP
-#define SPIDER_ATTACKER_ENVIRONMENT_HPP
+#ifndef PHAH_TITUENVIRONMENT_HPP
+#define PHAH_TITUENVIRONMENT_HPP
 
 #include "base.hpp"
 #include "entity.hpp"
@@ -8,7 +8,7 @@
 #include <iostream>
 #include <functional>
 
-namespace spider_attack
+namespace phah_titu
 {
     class Environment
     {

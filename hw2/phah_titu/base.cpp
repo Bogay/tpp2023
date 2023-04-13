@@ -1,7 +1,7 @@
 #include <iostream>
 #include "base.hpp"
 
-namespace spider_attack
+namespace phah_titu
 {
     Base::Base() {}
 

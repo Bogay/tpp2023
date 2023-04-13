@@ -1,10 +1,10 @@
-#ifndef SPIDER_ATTACKER_ENTITY_HPP
-#define SPIDER_ATTACKER_ENTITY_HPP
+#ifndef PHAH_TITUENTITY_HPP
+#define PHAH_TITUENTITY_HPP
 
 #include <utility>
 #include <iostream>
 
-namespace spider_attack
+namespace phah_titu
 {
     enum EntityType
     {

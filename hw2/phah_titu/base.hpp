@@ -1,10 +1,10 @@
-#ifndef SPIDER_ATTACKER_BASE_HPP
-#define SPIDER_ATTACKER_BASE_HPP
+#ifndef PHAH_TITUBASE_HPP
+#define PHAH_TITUBASE_HPP
 
 #include <iostream>
 #include <utility>
 
-namespace spider_attack
+namespace phah_titu
 {
     class Base
     {

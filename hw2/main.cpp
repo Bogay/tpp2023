@@ -3,9 +3,9 @@
 #include <utility>
 #include <cassert>
 #include <map>
-#include "spider_attack/environment.hpp"
-#include "spider_attack/entity.hpp"
-#include "spider_attack/base.hpp"
+#include "phah_titu/environment.hpp"
+#include "phah_titu/entity.hpp"
+#include "phah_titu/base.hpp"
 
 using namespace std;
 
@@ -28,10 +28,10 @@ pair<int, int> sub_pos(pair<int, int> pa, pair<int, int> pb)
     return make_pair(pa.first - pb.first, pa.second - pb.second);
 }
 
-const spider_attack::Monster &select_target(
+const phah_titu::Monster &select_target(
     pair<int, int> my_position,
-    const vector<spider_attack::Monster> &monsters,
-    const spider_attack::Environment &env)
+    const vector<phah_titu::Monster> &monsters,
+    const phah_titu::Environment &env)
 {
     int selected_idx = -1;
     int min_dis_sq = -1;
@@ -56,7 +56,7 @@ const spider_attack::Monster &select_target(
     return monsters[0];
 }
 
-vector<pair<int, int>> get_default_positions(const spider_attack::Environment &env)
+vector<pair<int, int>> get_default_positions(const phah_titu::Environment &env)
 {
     vector<pair<int, int>> ret{
         make_pair(4200, 600),
@@ -78,11 +78,11 @@ vector<pair<int, int>> get_default_positions(const spider_attack::Environment &e
 
 int main()
 {
-    spider_attack::Environment env = spider_attack::Environment::read();
+    phah_titu::Environment env = phah_titu::Environment::read();
     auto default_positions = get_default_positions(env);
     map<int, bool> hero_is_controlled;
 
-    auto threat_level = [env](const spider_attack::Monster &mon)
+    auto threat_level = [env](const phah_titu::Monster &mon)
     {
         auto dis = dis_sq(mon.get_position(), env.get_my_base().get_position());
         if (dis > sq(6000))
@@ -110,7 +110,7 @@ int main()
             mon.debug(cerr);
         }
 
-        for (spider_attack::Hero &hero : env)
+        for (phah_titu::Hero &hero : env)
         {
             // this hero is controlled last round
             if (hero_is_controlled[hero.get_id()])
@@ -123,7 +123,7 @@ int main()
                 hero_is_controlled[hero.get_id()] = true;
         }
 
-        for (spider_attack::Hero &hero : env)
+        for (phah_titu::Hero &hero : env)
         {
             if (hero.get_shield_life() > 0 && hero.will_wait())
             {
@@ -141,8 +141,8 @@ int main()
 
         if (!monsters.empty())
         {
-            vector<spider_attack::Monster> selected_monsters;
-            for (spider_attack::Hero &hero : env)
+            vector<phah_titu::Monster> selected_monsters;
+            for (phah_titu::Hero &hero : env)
             {
                 if (!hero.will_wait())
                     continue;
@@ -170,7 +170,7 @@ int main()
         else
         {
             auto it = default_positions.begin();
-            for (spider_attack::Hero &hero : env)
+            for (phah_titu::Hero &hero : env)
             {
                 if (!hero.will_wait())
                     continue;
@@ -195,14 +195,14 @@ int main()
                 if (dis_sq(hero.get_position(), mon.get_position()) < sq(env.control_range))
                 {
                     hero.control(mon.get_id(), hero.get_position());
-                    current_mana -= 10;
+                    current_mana -= env.spell_cost;
                     break;
                 }
             }
         }
 
         // try wind
-        for (spider_attack::Hero &hero : env)
+        for (phah_titu::Hero &hero : env)
         {
             if (dis_sq(hero.get_position(), env.get_my_base().get_position()) > sq(4000))
                 continue;
@@ -224,7 +224,7 @@ int main()
         }
 
         // try to control more monsters moving to opponent base
-        for (spider_attack::Hero &hero : env)
+        for (phah_titu::Hero &hero : env)
         {
             if (current_mana < env.spell_cost)
                 break;

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <utility>
 
-namespace spider_attack
+namespace phah_titu
 {
     Entity Entity::read(std::istream &input)
     {
